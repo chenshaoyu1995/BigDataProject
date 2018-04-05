@@ -108,7 +108,7 @@ class CandidateGen:
 
 
 def isunique(colset):
-    linepair = lines.map(lambda line: (tuple([line[i] for i in colset]), 1)) \
+    linepair = lines.map(lambda line: (tuple((line[i] for i in colset)), 1)) \
                    .reduceByKey(lambda x, y: x + y)
 
     distcnt[colset] = linepair.count()
