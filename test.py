@@ -104,9 +104,30 @@ class CandidateGen:
         '''
         result = []
 
-        columnCombination = list(itertools.combinations(list(range(0, totalCol)), self.preLayer.k+1))
+        # columnCombination = list(itertools.combinations(list(range(0, totalCol)), self.preLayer.k+1))
 
-        for item in columnCombination:
+        nonuniqueGroup = {}
+
+        for item in self.preLayer.nonuniqueList:
+            removeLastItem = item[:-1]
+            if removeLastItem in nonuniqueGroup:
+                nonuniqueGroup[removeLastItem].append(item[-1])
+            else:
+                nonuniqueGroup[removeLastItem] = [item[-1]]
+
+        # combination of non unique items from previous layer
+        candidateList = []
+
+        for key, value in nonuniqueGroup.items():
+            length = len(value)
+            for i in range(length - 1):
+                for j in range(i + 1, length):
+                    if value[i] < value[j]:
+                        candidateList.append(key + tuple([value[i]]) + tuple([value[j]]))
+                    else:
+                        candidateList.append(key + tuple([value[j]]) + tuple([value[i]]))
+                        
+        for item in candidateList:
             itemtuple = tuple(item)
             if self.isvalidunique(itemtuple):
                 continue
