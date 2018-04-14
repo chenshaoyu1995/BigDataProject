@@ -139,6 +139,9 @@ class CandidateGen:
         for colitem in candidate:
             leftset = set([colitem])
             rightset = fullset - leftset
+
+            # If the colitem is a single column,
+            # the maximum count and distinct count will never be -1
             leftmaxcnt = maxcnt.get(tuple(leftset), -1)
             leftdistcnt = distcnt.get(tuple(leftset), -1)
             rightmaxcnt = maxcnt.get(tuple(rightset), -1)
@@ -155,13 +158,44 @@ class CandidateGen:
     def getLayer(self):
         return self.Layer
 
-def getfuncdepen():
+
+def getfuncdepen(colset):
+    '''
+    Find out the function dependencies in this column combinations
+    :param colset: Tuple
+    :return: Null
+    '''
+    fullset = set(colset)
+    for colitem in colset:
+        leftset = set([colitem])
+        rightset = fullset - leftset
+
+        # If the colitem is a single column,
+        # the maximum count and distinct count will never be -1
+
+        leftdistcnt = distcnt.get(tuple(leftset), -1)
+        fulldistcnt = distcnt.get(tuple(fullset), -1)
+
+        if(leftdistcnt == -1):
+            continue
+
+        if(leftdistcnt == fulldistcnt):
+            rightlist = funcdepen.get(tuple(leftset), [])
+            rightlist.append(tuple(rightset))
+            funcdepen[tuple(leftset)] = rightlist
+            
     return
 
 
 def isunique(colset):
+    '''
+    Look up the table to check whether the column combinations are unique one
+    :param colset: Tuple
+    :return: Boolean
+    '''
+
     linepair = lines.map(lambda line: (tuple((line[i] for i in colset)), 1)) \
-                   .reduceByKey(lambda x, y: x + y)
+                    .reduceByKey(lambda x, y: x + y)
 
     distcnt[colset] = linepair.count()
 
