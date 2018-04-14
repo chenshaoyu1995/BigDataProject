@@ -21,6 +21,12 @@ lines.persist(StorageLevel.MEMORY_AND_DISK)
 # List of tuple
 miniUnique = []
 
+# The collection of all function dependencies
+# {(0,) : [(1, 2, 3), (4,)]}
+# Dictionary: Tuple -> List of Tuple
+funcdepen = {}
+
+
 # The number of total columns
 totalCol = -1
 
@@ -138,6 +144,9 @@ class CandidateGen:
             rightmaxcnt = maxcnt.get(tuple(rightset), -1)
             rightdistcnt = distcnt.get(tuple(rightset), -1)
 
+            if(rightdistcnt == -1 or leftdistcnt == -1):
+                continue
+
             if(rightdistcnt < leftmaxcnt or leftdistcnt < rightmaxcnt):
                 return True
 
@@ -145,6 +154,9 @@ class CandidateGen:
 
     def getLayer(self):
         return self.Layer
+
+def getfuncdepen():
+    return
 
 
 def isunique(colset):
