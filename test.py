@@ -123,9 +123,9 @@ class CandidateGen:
             for i in range(length - 1):
                 for j in range(i + 1, length):
                     if value[i] < value[j]:
-                        candidateList.append(key + value[i] + value[j])
+                        candidateList.append(key + tuple([value[i]]) + tuple([value[j]]))
                     else:
-                        candidateList.append(key + value[j] + value[i])
+                        candidateList.append(key + tuple([value[j]]) + tuple([value[i]]))
                         
         for item in candidateList:
             itemtuple = tuple(item)
