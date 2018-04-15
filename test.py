@@ -89,13 +89,12 @@ class ColLayer:
 
 class CandidateGen:
 
-    def __init__(self, preLayer, Layer):
+    def __init__(self, preLayer):
         '''
 
         :param preLayer: ColLayer
         '''
         self.preLayer = preLayer
-        self.Layer = Layer
 
     def create(self):
         '''
@@ -131,9 +130,6 @@ class CandidateGen:
             itemtuple = tuple(item)
             if self.isvalidunique(itemtuple):
                 continue
-            if self.hcaprune(itemtuple):
-                self.Layer.addnonunique(itemtuple)
-                continue
             result.append(itemtuple)
         return result
 
@@ -150,7 +146,8 @@ class CandidateGen:
                 return True
         return False
 
-    def hcaprune(self, candidate):
+
+def hcaprune(candidate):
         '''
         Use HCA to prune the candidate, if return True, the candidate is non-unique set.
         :param candidate: Tuple
@@ -175,9 +172,6 @@ class CandidateGen:
                 return True
 
         return False
-
-    def getLayer(self):
-        return self.Layer
 
 
 def getfuncdepen(colset):
@@ -249,10 +243,13 @@ if __name__ == '__main__':
 
     # For the rest layers
     for i in range(1, totalCol):
-        generator = CandidateGen(layers[i-1], layers[i])
+        generator = CandidateGen(layers[i-1])
         kcandidates = generator.create()
         layers[i] = generator.getLayer()
         for candidate in kcandidates:
+            if hcaprune(candidate):
+                layers[i].addnonunique(candidate)
+                continue
             if isunique(candidate):
                 layers[i].addminiunique(candidate)
             else:
