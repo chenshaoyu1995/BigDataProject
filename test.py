@@ -99,9 +99,9 @@ class CandidateGen:
     def create(self):
         '''
 
-        :return: List of Tuple
+        :return: Dictionary of Tuple
         '''
-        result = []
+        result = {}
 
         # columnCombination = list(itertools.combinations(list(range(0, totalCol)), self.preLayer.k+1))
 
@@ -130,7 +130,8 @@ class CandidateGen:
             itemtuple = tuple(item)
             if self.isvalidunique(itemtuple):
                 continue
-            result.append(itemtuple)
+            result[itemtuple] = 1
+
         return result
 
     # Pruning function
@@ -205,7 +206,7 @@ def hcaprune(colset):
 def fdprunce_non_unique(colset, candidates):
     '''
     Use function dependencies to prune
-    :param candidates: Set
+    :param candidates: Dictionary
     :param colset: Tuple
     :return: Null
     '''
@@ -284,7 +285,7 @@ if __name__ == '__main__':
     for i in range(1, nonunique_1_size):
         generator = CandidateGen(layers[i-1])
         kcandidates = generator.create()
-        for candidate in kcandidates:
+        for candidate in kcandidates.keys():
             # Use the HCA to prune the candidate.
             # Add the non-unique item
             if hcaprune(candidate) or (candidate in distcnt and distcnt[candidate] == -1):
@@ -294,13 +295,14 @@ if __name__ == '__main__':
             flag = isunique(candidate)
             # After looking up the table, we get the statistic information,
             # so we can find function dependencies from those information
-            getfuncdepen(candidate)
+            if i == 1:
+                getfuncdepen(candidate)
             if flag:
                 layers[i].addminiunique(candidate)
             else:
                 layers[i].addnonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
-                fdprunce_non_unique(candidate, set(kcandidates))
+                fdprunce_non_unique(candidate, kcandidates)
 
     print(miniUnique)
 
