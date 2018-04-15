@@ -22,8 +22,8 @@ lines.persist(StorageLevel.MEMORY_AND_DISK)
 miniUnique = []
 
 # The collection of all function dependencies
-# {(0,) : [(1, 2, 3), (4,)]}
-# Dictionary: Tuple -> List of Tuple
+# {(0,) : Set(0, 2, 4)}
+# Dictionary: Tuple -> Set
 funcdepen = {}
 
 
@@ -89,20 +89,19 @@ class ColLayer:
 
 class CandidateGen:
 
-    def __init__(self, preLayer, Layer):
+    def __init__(self, preLayer):
         '''
 
         :param preLayer: ColLayer
         '''
         self.preLayer = preLayer
-        self.Layer = Layer
 
     def create(self):
         '''
 
-        :return: List of Tuple
+        :return: Dictionary of Tuple
         '''
-        result = []
+        result = {}
 
         # columnCombination = list(itertools.combinations(list(range(0, totalCol)), self.preLayer.k+1))
 
@@ -131,10 +130,8 @@ class CandidateGen:
             itemtuple = tuple(item)
             if self.isvalidunique(itemtuple):
                 continue
-            if self.hcaprune(itemtuple):
-                self.Layer.addnonunique(itemtuple)
-                continue
-            result.append(itemtuple)
+            result[itemtuple] = 1
+
         return result
 
     # Pruning function
@@ -150,39 +147,109 @@ class CandidateGen:
                 return True
         return False
 
-    def hcaprune(self, candidate):
-        '''
-        Use HCA to prune the candidate, if return True, the candidate is non-unique set.
-        :param candidate: Tuple
-        :return: Boolean
-        '''
-        fullset = set(candidate)
-        for colitem in candidate:
-            leftset = set([colitem])
-            rightset = fullset - leftset
-            leftmaxcnt = maxcnt.get(tuple(leftset), -1)
-            leftdistcnt = distcnt.get(tuple(leftset), -1)
-            rightmaxcnt = maxcnt.get(tuple(rightset), -1)
-            rightdistcnt = distcnt.get(tuple(rightset), -1)
 
-            if(rightdistcnt == -1 or leftdistcnt == -1):
+def getfuncdepen(colset):
+    '''
+    Find out the function dependencies in this column combinations
+    :param colset: Tuple
+    :return: Null
+    '''
+    fullset = set(colset)
+    for colitem in colset:
+        leftset = set([colitem])
+        rightset = fullset - leftset
+
+        # If the colitem is a single column,
+        # the maximum count and distinct count will never be -1
+
+        leftdistcnt = distcnt.get(tuple(leftset), -1)
+        fulldistcnt = distcnt.get(tuple(fullset), -1)
+
+        if leftdistcnt == -1:
+            continue
+
+        if leftdistcnt == fulldistcnt:
+            preset = funcdepen.get(tuple(leftset), set())
+            funcdepen[tuple(leftset)] = preset | rightset
+
+    return
+
+
+def hcaprune(colset):
+    '''
+    Use HCA to prune the candidate, if return True, the candidate is non-unique set.
+    :param candidate: Tuple
+    :return: Boolean
+    '''
+
+    fullset = set(colset)
+    for colitem in colset:
+        leftset = set([colitem])
+        rightset = fullset - leftset
+
+        # If the colitem is a single column,
+        # the maximum count and distinct count will never be -1
+        leftmaxcnt = maxcnt.get(tuple(leftset), -1)
+        leftdistcnt = distcnt.get(tuple(leftset), -1)
+        rightmaxcnt = maxcnt.get(tuple(rightset), -1)
+        rightdistcnt = distcnt.get(tuple(rightset), -1)
+
+        if leftdistcnt == -1 or rightdistcnt == -1:
+            continue
+
+        if rightdistcnt < leftmaxcnt or leftdistcnt < rightmaxcnt:
+            return True
+
+    return False
+
+
+def fdprunce_non_unique(colset, candidates):
+    '''
+    Use function dependencies to prune
+    :param candidates: Dictionary
+    :param colset: Tuple
+    :return: Null
+    '''
+
+    fullset = set(colset)
+    for colitem in colset:
+        leftset = set([colitem])
+        rightlist = list(fullset - leftset)
+
+        rightset = funcdepen.get(tuple(leftset), set())
+
+        for rightitem in rightset:
+            candidate = tuple(sorted(rightlist + [rightitem]))
+            if candidate not in candidates:
                 continue
+            if candidate in maxcnt:
+                if maxcnt[candidate] != 0:
+                    continue
+                else:
+                    print("The function dependency pruning is wrong! The non-unque",
+                          colset, "->", candidate)
+                    exit(1)
+            if candidate in distcnt:
+                if distcnt[candidate] != -1:
+                    print("The function dependency pruning is wrong! The non-unque",
+                           colset, "->", candidate)
+                    exit(1)
+            else:
+                distcnt[candidate] = -1
 
-            if(rightdistcnt < leftmaxcnt or leftdistcnt < rightmaxcnt):
-                return True
 
-        return False
-
-    def getLayer(self):
-        return self.Layer
-
-def getfuncdepen():
     return
 
 
 def isunique(colset):
+    '''
+    Look up the table to check whether the column combinations are unique one
+    :param colset: Tuple
+    :return: Boolean
+    '''
+
     linepair = lines.map(lambda line: (tuple((line[i] for i in colset)), 1)) \
-                   .reduceByKey(lambda x, y: x + y)
+                    .reduceByKey(lambda x, y: x + y)
 
     distcnt[colset] = linepair.count()
 
@@ -213,21 +280,34 @@ if __name__ == '__main__':
         else:
             layers[0].addnonunique(attriset)
 
+    nonunique_1_size = len(layers[0].nonuniqueList)
     # For the rest layers
-    for i in range(1, totalCol):
-        generator = CandidateGen(layers[i-1], layers[i])
+    for i in range(1, nonunique_1_size):
+        generator = CandidateGen(layers[i-1])
         kcandidates = generator.create()
-        layers[i] = generator.getLayer()
-        for candidate in kcandidates:
-            if isunique(candidate):
+        for candidate in kcandidates.keys():
+            # Use the HCA to prune the candidate.
+            # Add the non-unique item
+            if hcaprune(candidate) or (candidate in distcnt and distcnt[candidate] == -1):
+                layers[i].addnonunique(candidate)
+                continue
+            # Look up the table to check whether it is unique
+            flag = isunique(candidate)
+            # After looking up the table, we get the statistic information,
+            # so we can find function dependencies from those information
+            if i == 1:
+                getfuncdepen(candidate)
+            if flag:
                 layers[i].addminiunique(candidate)
             else:
                 layers[i].addnonunique(candidate)
+                # Use function dependencies to prune the non-unique candidates
+                fdprunce_non_unique(candidate, kcandidates)
 
     print(miniUnique)
 
-    # for i in range(0, totalCol):
-    #     print(layers[i].nonuniqueList)
+    for i in range(0, nonunique_1_size):
+        print(layers[i].nonuniqueList)
 
 
 
