@@ -1,4 +1,3 @@
-import numpy as np
 import csv
 import itertools
 from pyspark import SparkContext, SparkConf, StorageLevel
@@ -35,7 +34,8 @@ totalCol = -1
 # If Tuple is not in the maxcnt, the default value is -1
 maxcnt = {}
 
-# The dictionary of maximum count
+# The dictionary of distinct count
+# Also used to mark that Tuple is non-unique via fd pruning
 # {Tuple(0, 1) : 1000}
 # If Tuple is not in the distcnt, the default value is -1
 distcnt = {}
@@ -63,7 +63,7 @@ class ColLayer:
     def addunique(self, uniqueset):
         '''
         The unique list are used to generate the super set of the combination which is definitely unique set
-        :param uniqueset: tuple
+        :param uniqueset: Tuple
         :return:
         '''
         self.uniqueList.append(uniqueset)
@@ -71,15 +71,15 @@ class ColLayer:
     def addnonunique(self, nonuniqueset):
         '''
         The non-unique list are used to generate the possible candidates
-        :param nonuniqueset: tuple
+        :param nonuniqueset: uple
         :return:
         '''
         self.nonuniqueList.append(nonuniqueset)
 
     def addminiunique(self, uniqueset):
         """
-        After table look-up, the unqiue combination must be mini-unique
-        :param uniqueset: tuple
+        After table look-up, the unique combination must be mini-unique
+        :param uniqueset: Tuple
         :return:
         """
         self.miniUniqueList.append(uniqueset)
@@ -98,7 +98,7 @@ class CandidateGen:
 
     def create(self):
         '''
-
+        Generator
         :return: Dictionary of Tuple
         '''
         result = {}
@@ -203,7 +203,7 @@ def hcaprune(colset):
     return False
 
 
-def fdprunce_non_unique(colset, candidates):
+def fdprune_non_unique(colset, candidates):
     '''
     Use function dependencies to prune
     :param candidates: Dictionary
@@ -272,7 +272,6 @@ if __name__ == '__main__':
         layers.append(ColLayer(i+1))
 
     # For the first layer
-
     for i in range(0, totalCol):
         attriset = tuple([i])
         if isunique(attriset):
@@ -287,22 +286,25 @@ if __name__ == '__main__':
         kcandidates = generator.create()
         for candidate in kcandidates.keys():
             # Use the HCA to prune the candidate.
-            # Add the non-unique item
+            # Add the non-unique item via fd prune
             if hcaprune(candidate) or (candidate in distcnt and distcnt[candidate] == -1):
                 layers[i].addnonunique(candidate)
                 continue
+
             # Look up the table to check whether it is unique
             flag = isunique(candidate)
+
             # After looking up the table, we get the statistic information,
             # so we can find function dependencies from those information
             if i == 1:
                 getfuncdepen(candidate)
+
             if flag:
                 layers[i].addminiunique(candidate)
             else:
                 layers[i].addnonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
-                fdprunce_non_unique(candidate, kcandidates)
+                fdprune_non_unique(candidate, kcandidates)
 
     print(miniUnique)
 
