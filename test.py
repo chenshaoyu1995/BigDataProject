@@ -202,10 +202,11 @@ def hcaprune(colset):
     return False
 
 
-def fdprunce_non_unique(colset):
+def fdprunce_non_unique(colset, candidates):
     '''
     Use function dependencies to prune
-    :param candidate: Tuple
+    :param candidates: Set
+    :param colset: Tuple
     :return: Null
     '''
 
@@ -217,11 +218,21 @@ def fdprunce_non_unique(colset):
         rightset = funcdepen.get(tuple(leftset), set())
 
         for rightitem in rightset:
-            candidate = tuple((rightlist + [rightitem]).sort())
-            if candidate in distcnt and distcnt[candidate] != -1:
-                print("The function dependency pruning is wrong! The non-unque",
-                       colset, "->", candidate)
-                exit(1)
+            candidate = tuple(sorted(rightlist + [rightitem]))
+            if candidate not in candidates:
+                continue
+            if candidate in maxcnt:
+                if maxcnt[candidate] != 0:
+                    continue
+                else:
+                    print("The function dependency pruning is wrong! The non-unque",
+                          colset, "->", candidate)
+                    exit(1)
+            if candidate in distcnt:
+                if distcnt[candidate] != -1:
+                    print("The function dependency pruning is wrong! The non-unque",
+                           colset, "->", candidate)
+                    exit(1)
             else:
                 distcnt[candidate] = -1
 
@@ -268,11 +279,11 @@ if __name__ == '__main__':
         else:
             layers[0].addnonunique(attriset)
 
+    nonunique_1_size = len(layers[0].nonuniqueList)
     # For the rest layers
-    for i in range(1, totalCol):
+    for i in range(1, nonunique_1_size):
         generator = CandidateGen(layers[i-1])
         kcandidates = generator.create()
-        layers[i] = generator.getLayer()
         for candidate in kcandidates:
             # Use the HCA to prune the candidate.
             # Add the non-unique item
@@ -289,12 +300,12 @@ if __name__ == '__main__':
             else:
                 layers[i].addnonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
-                fdprunce_non_unique(candidate)
+                fdprunce_non_unique(candidate, set(kcandidates))
 
     print(miniUnique)
 
-    # for i in range(0, totalCol):
-    #     print(layers[i].nonuniqueList)
+    for i in range(0, nonunique_1_size):
+        print(layers[i].nonuniqueList)
 
 
 
