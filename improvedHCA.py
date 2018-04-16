@@ -182,11 +182,11 @@ def hcaPrune(candidate):
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        rightDistinctCount = distinctCounts[lefttuple]
+        rightDistinctCount = distinctCounts[righttuple]
         if rightDistinctCount == -1:
             continue
         rightMaxCount = maxCounts[righttuple]
-        leftMaxCount = maxCounts[righttuple]
+        leftMaxCount = maxCounts[lefttuple]
         leftDistinctCount = distinctCounts[lefttuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
@@ -223,11 +223,11 @@ def fdPruneNonunique(colSetTuple, candidates):
             if candidate in maxCounts:
                 assert maxCounts[candidate] != 1, "the maximum count of a non-unique should not be 1"
                 continue
-
-            if candidate in distinctCounts:
-                assert distinctCounts[candidate] == 1, "the distinct count of a non-unique should be -1"
             else:
-                distinctCounts[candidate] = -1
+                if candidate in distinctCounts:
+                    assert distinctCounts[candidate] == -1, "the distinct count of a non-unique should be -1"
+                else:
+                    distinctCounts[candidate] = -1
 
 def uniquenessCheck(colSetTuple):
     '''
@@ -240,9 +240,9 @@ def uniquenessCheck(colSetTuple):
                     .reduceByKey(lambda x, y: x + y)
 
     distinctCounts[colSetTuple] = linepair.count() # number of distinct values
-    maxitem = linepair.max()
+    maxitem = linepair.max(lambda x: x[1])
     maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
-    
+
     return maxCounts[colSetTuple] == 1
 
 
