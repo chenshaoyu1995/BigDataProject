@@ -1,5 +1,4 @@
 import csv
-from pyspark import SparkContext, SparkConf, StorageLevel
 from collections import defaultdict
 
 # The collection of all the minimalUniques
@@ -243,6 +242,8 @@ def fdPruneUnique(colSetTuple, candidates):
             else:
                 distinctCounts[candidate] = -2 #candidate is unique
 
+linelist = []
+
 def uniquenessCheck(colSetTuple):
     '''
     Look up the table to check whether the column combinations are unique one
@@ -250,41 +251,70 @@ def uniquenessCheck(colSetTuple):
     :return: Boolean. True if input is an unique
     '''
 
-    linepair = lines.map(lambda line: (tuple((line[i] for i in colSetTuple)), 1)) \
-                    .reduceByKey(lambda x, y: x + y)
+    counter = defaultdict(lambda: 0)
 
-    distinctCounts[colSetTuple] = linepair.count() # number of distinct values
-    maxitem = linepair.max()
-    maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
+    maxCount = 0
+    for item in linelist:
+        curItem = []
+        for col in colSetTuple:
+            curItem.append(item[col])
+        counter[tuple(curItem)] += 1
     
+    for key, value in counter.items():
+        maxCount = max(maxCount, value)
+
+    maxCounts[colSetTuple] = maxCount
+    # print (maxCount)
+    distinctCounts[colSetTuple] = len(counter.items())
+
     return maxCounts[colSetTuple] == 1
 
-# Boolean flag to control test method
-localTest = True
+
+def bruteForceCheck():
+    minimalUnique = []
+    nonUnique = []
+
+    length = len(linelist[0])
+
+    for i in range(1, (1 << length)):
+        colList = []
+        for j in range(length):
+            if (((i >> j) & 1) == 1):
+                colList.append(j)
+        isUnique = uniquenessCheck(tuple(colList))
+
+        if isUnique:
+            flag = True
+            for j in range(len(colList)):
+                removeOneList = colList[:j] + colList[j + 1:]
+                assert len(removeOneList) == len(colList) - 1  
+
+                # check if it is minimal unique
+                if not (tuple(removeOneList) in nonUnique):
+                    flag = False
+                    break
+            if flag or len(colList) == 1:
+                minimalUnique.append(tuple(colList))
+        else:
+            nonUnique.append(tuple(colList))
+    
+    print ('brute force result')
+
+    print ('minimal unique')
+    print (minimalUnique)  
+
+    print ('non unique')
+    print (nonUnique)  
 
 if __name__ == '__main__':
-    if localTest:
-        with open('data.csv', 'r') as f:
-            reader = csv.reader(f)
-            line_list = list(reader)
+    with open('data_small.csv', 'r') as f:
+        reader = csv.reader(f)
+        linelist = list(reader)
 
-        print(line_list)
-    
-    else:
-        '''
-        Spark task initialization.
-        '''
-        conf = SparkConf().setMaster("local").setAppName("K-candidate")
-        sc = SparkContext(conf=conf)
+    print('line list')
+    # print(linelist)
 
-        '''
-        Data initialization.
-        '''
-        #lines = sc.textFile("open-violations.csv")
-        lines = sc.textFile("ha.csv")
-        lines = lines.mapPartitions(lambda line: csv.reader(line))
-        lines.persist(StorageLevel.MEMORY_AND_DISK)
-        linelist = lines.collect()
+    bruteForceCheck()
 
     totalCol = len(linelist[0])
 
@@ -334,8 +364,10 @@ if __name__ == '__main__':
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
 
+    print ('minimal unique result')
     print(minimalUniques)
 
+    print ('non unique result in each layer')
     for i in range(0, nonunique_1_size):
         print(layers[i].nonuniqueList)
 
