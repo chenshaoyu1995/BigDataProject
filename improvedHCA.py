@@ -177,17 +177,17 @@ def hcaPrune(candidate):
         leftSet = {column}
         rightSet = fullSet - leftSet
 
-        lefttuple = (column,)
-        righttuple = tuple(rightSet)
+        leftTuple = (column,)
+        rightTuple = tuple(rightSet)
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        rightDistinctCount = distinctCounts[righttuple]
+        rightDistinctCount = distinctCounts[rightTuple]
         if rightDistinctCount == -1:
             continue
-        rightMaxCount = maxCounts[righttuple]
-        leftMaxCount = maxCounts[lefttuple]
-        leftDistinctCount = distinctCounts[lefttuple]
+        rightMaxCount = maxCounts[rightTuple]
+        leftMaxCount = maxCounts[leftTuple]
+        leftDistinctCount = distinctCounts[leftTuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
 #        if leftdistcnt == -1:
@@ -240,8 +240,11 @@ def uniquenessCheck(colSetTuple):
                     .reduceByKey(lambda x, y: x + y)
 
     distinctCounts[colSetTuple] = linepair.count() # number of distinct values
-    maxitem = linepair.max(lambda x: x[1])
+    maxitem = linepair.max(key=lambda x:x[1])
     maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
+
+    if maxCounts[colSetTuple] == 1:
+        assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
 
     return maxCounts[colSetTuple] == 1
 
@@ -249,7 +252,7 @@ def uniquenessCheck(colSetTuple):
 if __name__ == '__main__':
 
     linelist = lines.collect()
-
+    totalRow = len(linelist)
     totalCol = len(linelist[0])
 
     layers = []
