@@ -318,6 +318,7 @@ if __name__ == '__main__':
 
             # Use functional dependency to prune unique item
             if candidate in distinctCounts and distinctCounts[candidate] == -2:
+                layers[i].addMinimalUnique(candidate)
                 continue
 
             # Look up the table to check whether it is unique

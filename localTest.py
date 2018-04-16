@@ -339,11 +339,12 @@ if __name__ == '__main__':
 
             # Use functional dependency to prune unique item
             if candidate in distinctCounts and distinctCounts[candidate] == -2:
+                layers[i].addMinimalUnique(candidate)
                 continue
 
             # Look up the table to check whether it is unique
             flag = uniquenessCheck(candidate)
-
+            
             # After looking up the table, we get the statistic information,
             # so we can find function dependencies from those information
             if i == 1:
@@ -353,10 +354,16 @@ if __name__ == '__main__':
                 layers[i].addMinimalUnique(candidate)
                 # Use function dependencies to prune the unique candidates
                 fdPruneUnique(candidate, kcandidates)
+
+                if (candidate == (5, 7)):
+                    print ('!!!!!')
             else:
                 layers[i].addNonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
+
+                if (candidate == (5, 7)):
+                    print ('!!!!!')
 
     print ('minimal unique result')
     print(sorted(minimalUniques))
