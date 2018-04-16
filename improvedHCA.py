@@ -224,11 +224,11 @@ def fdPruneNonunique(colSetTuple, candidates):
             if candidate in maxCounts:
                 assert maxCounts[candidate] != 1, "the maximum count of a non-unique should not be 1"
                 continue
-
-            if candidate in distinctCounts:
-                assert distinctCounts[candidate] == -1, "the distinct count of a non-unique should be -1"
             else:
-                distinctCounts[candidate] = -1
+                if candidate in distinctCounts:
+                    assert distinctCounts[candidate] == -1, "the distinct count of a non-unique should be -1"
+                else:
+                    distinctCounts[candidate] = -1
 
 def uniquenessCheck(colSetTuple):
     '''
@@ -242,10 +242,10 @@ def uniquenessCheck(colSetTuple):
     distinctCounts[colSetTuple] = linepair.count() # number of distinct values
     maxitem = linepair.max(key=lambda x:x[1])
     maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
-    
+
     if maxCounts[colSetTuple] == 1:
         assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
-    
+
     return maxCounts[colSetTuple] == 1
 
 
