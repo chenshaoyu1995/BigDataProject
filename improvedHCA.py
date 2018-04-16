@@ -252,7 +252,7 @@ def fdPruneUnique(colSetTuple, candidates):
         Xs = functionalDependencyDeterminants[tuple(A)]
 
         for X in Xs:
-            candidate = tuple(sorted(X + Y)) #candidate is {X,Y}
+            candidate = tuple(sorted([X] + Y)) #candidate is {X,Y}
             if candidate not in candidates:
                 continue
             else:
