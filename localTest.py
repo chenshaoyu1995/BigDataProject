@@ -354,16 +354,10 @@ if __name__ == '__main__':
                 layers[i].addMinimalUnique(candidate)
                 # Use function dependencies to prune the unique candidates
                 fdPruneUnique(candidate, kcandidates)
-
-                if (candidate == (5, 7)):
-                    print ('!!!!!')
             else:
                 layers[i].addNonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
-
-                if (candidate == (5, 7)):
-                    print ('!!!!!')
 
     print ('minimal unique result')
     print(sorted(minimalUniques))
