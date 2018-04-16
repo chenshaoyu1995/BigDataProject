@@ -236,7 +236,7 @@ def fdPruneUnique(colSetTuple, candidates):
         Xs = functionalDependencyDeterminants[tuple(A)]
 
         for X in Xs:
-            candidate = tuple(sorted(X + Y)) #candidate is {X,Y}
+            candidate = tuple(sorted([X] + Y)) #candidate is {X,Y}
             if candidate not in candidates:
                 continue
             else:
@@ -269,10 +269,10 @@ def uniquenessCheck(colSetTuple):
 
     return maxCounts[colSetTuple] == 1
 
+bruteForceMinimalUnique = []
+bruteForceNonunique = []
 
 def bruteForceCheck():
-    minimalUnique = []
-    nonUnique = []
 
     length = len(linelist[0])
 
@@ -290,24 +290,18 @@ def bruteForceCheck():
                 assert len(removeOneList) == len(colList) - 1  
 
                 # check if it is minimal unique
-                if not (tuple(removeOneList) in nonUnique):
+                if not (tuple(removeOneList) in bruteForceNonunique):
                     flag = False
                     break
             if flag or len(colList) == 1:
-                minimalUnique.append(tuple(colList))
+                bruteForceMinimalUnique.append(tuple(colList))
         else:
-            nonUnique.append(tuple(colList))
+            bruteForceNonunique.append(tuple(colList))
     
-    print ('brute force result')
-
-    print ('minimal unique')
-    print (minimalUnique)  
-
-    print ('non unique')
-    print (nonUnique)  
+    # print (bruteForceMinimalUnique)
 
 if __name__ == '__main__':
-    with open('data_small.csv', 'r') as f:
+    with open('ha.csv', 'r') as f:
         reader = csv.reader(f)
         linelist = list(reader)
 
@@ -345,11 +339,12 @@ if __name__ == '__main__':
 
             # Use functional dependency to prune unique item
             if candidate in distinctCounts and distinctCounts[candidate] == -2:
+                layers[i].addMinimalUnique(candidate)
                 continue
 
             # Look up the table to check whether it is unique
             flag = uniquenessCheck(candidate)
-
+            
             # After looking up the table, we get the statistic information,
             # so we can find function dependencies from those information
             if i == 1:
@@ -365,11 +360,18 @@ if __name__ == '__main__':
                 fdPruneNonunique(candidate, kcandidates)
 
     print ('minimal unique result')
-    print(minimalUniques)
+    print(sorted(minimalUniques))
 
-    print ('non unique result in each layer')
-    for i in range(0, nonunique_1_size):
-        print(layers[i].nonuniqueList)
+    print ('brute force minimal result')
+    print (sorted(bruteForceMinimalUnique))  
 
+
+    # print ('non unique result in each layer')
+    # for i in range(0, nonunique_1_size):
+    #     print(layers[i].nonuniqueList)
+
+    # print ('brute force nonunique result')
+    # print (bruteForceNonunique)
+    
 
 
