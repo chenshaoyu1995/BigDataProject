@@ -12,8 +12,8 @@ sc = SparkContext(conf=conf)
 Data initialization.
 '''
 #lines = sc.textFile("open-violations.csv")
-#lines = sc.textFile("file:///home/sc6439/project/ha.csv")
-lines = sc.textFile("ha.csv")
+lines = sc.textFile("file:///home/sc6439/project/ha.csv")
+#lines = sc.textFile("ha.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -226,7 +226,7 @@ def fdPruneNonunique(colSetTuple, candidates):
                 continue
 
             if candidate in distinctCounts:
-                assert distinctCounts[candidate] == 1, "the distinct count of a non-unique should be -1"
+                assert distinctCounts[candidate] == -1, "the distinct count of a non-unique should be -1"
             else:
                 distinctCounts[candidate] = -1
 
@@ -241,8 +241,11 @@ def uniquenessCheck(colSetTuple):
                     .reduceByKey(lambda x, y: x + y)
 
     distinctCounts[colSetTuple] = linepair.count() # number of distinct values
-    maxitem = linepair.max()
+    maxitem = linepair.max(key=lambda x:x[1])
     maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
+    
+    if maxCounts[colSetTuple] == 1:
+        assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
     
     return maxCounts[colSetTuple] == 1
 
@@ -250,7 +253,7 @@ def uniquenessCheck(colSetTuple):
 if __name__ == '__main__':
 
     linelist = lines.collect()
-
+    totalRow = len(linelist)
     totalCol = len(linelist[0])
 
     layers = []
