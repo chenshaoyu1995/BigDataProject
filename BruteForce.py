@@ -2,18 +2,19 @@ import csv
 from pyspark import SparkContext, SparkConf, StorageLevel
 import itertools
 from collections import defaultdict
+import time
 
 '''
 Spark task initialization.
 '''
-conf = SparkConf().setMaster("local").setAppName("K-candidate")
+conf = SparkConf().setAppName("K-candidate")
 sc = SparkContext(conf=conf)
 
 '''
 Data initialization.
 '''
 # lines = sc.textFile("open-violations.csv")
-lines = sc.textFile("ha.csv")
+lines = sc.textFile("/user/hw1651/1w.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -134,6 +135,8 @@ def uniquenessCheck(colSetTuple):
 
 if __name__ == '__main__':
 
+    start = time.time()
+
     linelist = lines.collect()
 
     totalCol = len(linelist[0])
@@ -164,10 +167,8 @@ if __name__ == '__main__':
             else:
                 layers[i].addNonunique(candidate)
 
-    print(minimalUniques)
-
-    for i in range(0, nonunique_1_size):
-        print(layers[i].nonuniqueList)
+    end = time.time()
+    print("time elapsed: {}".format(end - start))
 
 
 

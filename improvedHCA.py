@@ -22,12 +22,12 @@ lines.persist(StorageLevel.MEMORY_AND_DISK)
 minimalUniques = []
 
 # The collection of all functional dependencies X->Y
-# {(0,) : Set(0, 2, 4)}
+# {(0,) : Set(2, 4)}
 # Dictionary: Tuple -> Set 
 functionalDependencies = defaultdict(set)
 
-# The collection of all functional dependecy determinants X where X->Y
-# {(0, 2, 4) : Set((0, ), (2, ))}
+# The collection of all functional dependencies determinants Y where X->Y
+# {(2,) : Set(0), (4,) : Set(0)}
 # Dictionary: Tuple -> Set 
 functionalDependencyDeterminants = defaultdict(set)
 
@@ -169,7 +169,7 @@ def getFunctionalDependencies(colSetTuple):
 
         if leftDistinctCount == fullDistinctCount:
             functionalDependencies[tuple(leftSet)].update(rightSet)
-            functionalDependencyDeterminants[tuple(rightSet)].update(tuple(leftSet))
+            functionalDependencyDeterminants[tuple(rightSet)].update(leftSet)
 
 def hcaPrune(candidate):
     '''
@@ -241,22 +241,22 @@ def fdPruneUnique(colSetTuple, candidates):
     :param candidates: Dictionary whose keys are the candidates
     :param colSetTuple: Tuple represents the column combination of a candidate
     :return: Null
-    if {A,Y} is a unique and X->A, then {X,Y} is also a unique.
+    if {A,Y} is a unique and X->Y, then {A,X} is also a unique.
     '''
     fullSet = set(colSetTuple)
     for column in colSetTuple:
-        A = {column}
-        Y = list(fullSet - A)
+        Y = {column}
+        A = list(fullSet - Y)
         
         # obtain the determinnants of A
-        Xs = functionalDependencyDeterminants[tuple(A)]
+        Xs = functionalDependencyDeterminants[tuple(Y)]
 
         for X in Xs:
-            candidate = tuple(sorted(X + Y)) #candidate is {X,Y}
+            candidate = tuple(sorted(A+[X])) #candidate is {A,X}
             if candidate not in candidates:
                 continue
             else:
-                distinctCounts[candidate] = -2 #candidate is unique
+                distinctCounts[candidate] = totalRow #candidate is unique
 
 def uniquenessCheck(colSetTuple):
     '''
@@ -275,6 +275,7 @@ def uniquenessCheck(colSetTuple):
         assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
 
     return maxCounts[colSetTuple] == 1
+
 
 if __name__ == '__main__':
     start = time.time()
@@ -301,14 +302,15 @@ if __name__ == '__main__':
         generator = CandidateGenerator(layers[i-1])
         kcandidates = generator.create()
         hcapruneCount=0
-        fdpruneCount=0
+        fdpruneNonUniqueCount=0
+        fdpruneUniqueCount = 0
         checkCount=0
         for candidate in kcandidates.keys():
             # Use the HCA to prune the candidate.
             # Add the non-unique item via fd prune
             if candidate in distinctCounts and distinctCounts[candidate] == -1:
                 layers[i].addNonunique(candidate)
-                fdpruneCount+=1
+                fdpruneNonUniqueCount += 1
                 continue
             
             if hcaPrune(candidate):
@@ -317,7 +319,9 @@ if __name__ == '__main__':
                 continue
 
             # Use functional dependency to prune unique item
-            if candidate in distinctCounts and distinctCounts[candidate] == -2:
+            if candidate in distinctCounts and distinctCounts[candidate] == totalRow:
+                layers[i].addMinimalUnique(candidate)
+                fdpruneUniqueCount += 1
                 continue
 
             # Look up the table to check whether it is unique
@@ -337,7 +341,7 @@ if __name__ == '__main__':
                 layers[i].addNonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
-        print("{} layer: hca-{},fd-{},check-{}".format(i,hcapruneCount,fdpruneCount,checkCount))
+        print("{} layer: hca-{},fdnon-{},fdmu-{},check-{}".format(i,hcapruneCount,fdpruneNonUniqueCount, fdpruneUniqueCount,checkCount))
     end = time.time()
     print("time elapsed: {}".format(end - start))
 #    print(minimalUniques)
