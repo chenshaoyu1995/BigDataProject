@@ -1,6 +1,21 @@
 import csv
+import time
 from pyspark import SparkContext, SparkConf, StorageLevel
 from collections import defaultdict
+
+'''
+Spark task initialization.
+'''
+conf = SparkConf().setAppName("K-candidate")
+sc = SparkContext(conf=conf)
+
+'''
+Data initialization.
+'''
+#lines = sc.textFile("file:///home/sc6439/project/ha.csv")
+lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
+lines = lines.mapPartitions(lambda line: csv.reader(line))
+lines.persist(StorageLevel.MEMORY_AND_DISK)
 
 # The collection of all the minimalUniques
 # List of tuple, each tuple is the columns of a min-unique
@@ -168,17 +183,17 @@ def hcaPrune(candidate):
         leftSet = {column}
         rightSet = fullSet - leftSet
 
-        lefttuple = (column,)
-        righttuple = tuple(rightSet)
+        leftTuple = (column,)
+        rightTuple = tuple(rightSet)
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        rightDistinctCount = distinctCounts[lefttuple]
+        rightDistinctCount = distinctCounts[rightTuple]
         if rightDistinctCount == -1:
             continue
-        rightMaxCount = maxCounts[righttuple]
-        leftMaxCount = maxCounts[righttuple]
-        leftDistinctCount = distinctCounts[lefttuple]
+        rightMaxCount = maxCounts[rightTuple]
+        leftMaxCount = maxCounts[leftTuple]
+        leftDistinctCount = distinctCounts[leftTuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
 #        if leftdistcnt == -1:
@@ -214,11 +229,11 @@ def fdPruneNonunique(colSetTuple, candidates):
             if candidate in maxCounts:
                 assert maxCounts[candidate] != 1, "the maximum count of a non-unique should not be 1"
                 continue
-
-            if candidate in distinctCounts:
-                assert distinctCounts[candidate] == 1, "the distinct count of a non-unique should be -1"
             else:
-                distinctCounts[candidate] = -1
+                if candidate in distinctCounts:
+                    assert distinctCounts[candidate] == -1, "the distinct count of a non-unique should be -1"
+                else:
+                    distinctCounts[candidate] = -1
 
 def fdPruneUnique(colSetTuple, candidates):
     '''
@@ -249,43 +264,22 @@ def uniquenessCheck(colSetTuple):
     :param colSetTuple: Tuple represents the column combination of a candidate
     :return: Boolean. True if input is an unique
     '''
-
     linepair = lines.map(lambda line: (tuple((line[i] for i in colSetTuple)), 1)) \
                     .reduceByKey(lambda x, y: x + y)
 
     distinctCounts[colSetTuple] = linepair.count() # number of distinct values
-    maxitem = linepair.max()
+    maxitem = linepair.max(key=lambda x:x[1])
     maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
-    
+
+    if maxCounts[colSetTuple] == 1:
+        assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
+
     return maxCounts[colSetTuple] == 1
 
-# Boolean flag to control test method
-localTest = True
-
 if __name__ == '__main__':
-    if localTest:
-        with open('data.csv', 'r') as f:
-            reader = csv.reader(f)
-            line_list = list(reader)
-
-        print(line_list)
-    
-    else:
-        '''
-        Spark task initialization.
-        '''
-        conf = SparkConf().setMaster("local").setAppName("K-candidate")
-        sc = SparkContext(conf=conf)
-
-        '''
-        Data initialization.
-        '''
-        #lines = sc.textFile("open-violations.csv")
-        lines = sc.textFile("ha.csv")
-        lines = lines.mapPartitions(lambda line: csv.reader(line))
-        lines.persist(StorageLevel.MEMORY_AND_DISK)
-        linelist = lines.collect()
-
+    start = time.time()
+    linelist = lines.collect()
+    totalRow = len(linelist)
     totalCol = len(linelist[0])
 
     layers = []
@@ -306,11 +300,20 @@ if __name__ == '__main__':
     for i in range(1, nonunique_1_size):
         generator = CandidateGenerator(layers[i-1])
         kcandidates = generator.create()
+        hcapruneCount=0
+        fdpruneCount=0
+        checkCount=0
         for candidate in kcandidates.keys():
             # Use the HCA to prune the candidate.
             # Add the non-unique item via fd prune
-            if hcaPrune(candidate) or (candidate in distinctCounts and distinctCounts[candidate] == -1):
+            if candidate in distinctCounts and distinctCounts[candidate] == -1:
                 layers[i].addNonunique(candidate)
+                fdpruneCount+=1
+                continue
+            
+            if hcaPrune(candidate):
+                layers[i].addNonunique(candidate)
+                hcapruneCount+=1
                 continue
 
             # Use functional dependency to prune unique item
@@ -319,6 +322,7 @@ if __name__ == '__main__':
 
             # Look up the table to check whether it is unique
             flag = uniquenessCheck(candidate)
+            checkCount+=1
 
             # After looking up the table, we get the statistic information,
             # so we can find function dependencies from those information
@@ -333,11 +337,9 @@ if __name__ == '__main__':
                 layers[i].addNonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
-
-    print(minimalUniques)
-
-    for i in range(0, nonunique_1_size):
-        print(layers[i].nonuniqueList)
-
-
-
+        print("{} layer: hca-{},fd-{},check-{}".format(i,hcapruneCount,fdpruneCount,checkCount))
+    end = time.time()
+    print("time elapsed: {}".format(end - start))
+#    print(minimalUniques)
+#    for i in range(0, nonunique_1_size):
+#        print(layers[i].nonuniqueList)
