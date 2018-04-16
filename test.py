@@ -32,13 +32,13 @@ totalCol = -1
 # The dictionary of maximum counts
 # {Tuple(0, 1) : 1}
 # If Tuple is not in the maxCounts, the default value is -1
-maxCounts = defaultdict(lambda:-1)
+maxCounts = defaultdict(lambda: -1)
 
 # The dictionary of distinct counts
 # Also used to mark that Tuple is non-unique via fd pruning
 # {Tuple(0, 1) : 1000}
 # If Tuple is not in the distinctCounts, the default value is -1
-distinctCounts = defaultdict(lambda:-1)
+distinctCounts = defaultdict(lambda: -1)
 
 
 class ColLayer:
@@ -157,7 +157,7 @@ def getFunctionalDependencies(colSetTuple):
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        leftDistinctCount = distinctCounts[leftSet]
+        leftDistinctCount = distinctCounts[tuple(leftSet)]
 
         if leftDistinctCount == -1:
             continue
@@ -177,14 +177,17 @@ def hcaPrune(candidate):
         leftSet = {column}
         rightSet = fullSet - leftSet
 
+        lefttuple = (column,)
+        righttuple = tuple(rightSet)
+
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        rightDistinctCount = distinctCounts[rightSet]
+        rightDistinctCount = distinctCounts[lefttuple]
         if rightDistinctCount == -1:
             continue
-        rightMaxCount = maxCounts[rightSet]
-        leftMaxCount = maxCounts[leftSet]
-        leftDistinctCount = distinctCounts[leftSet]
+        rightMaxCount = maxCounts[righttuple]
+        leftMaxCount = maxCounts[righttuple]
+        leftDistinctCount = distinctCounts[lefttuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
 #        if leftdistcnt == -1:
@@ -218,17 +221,11 @@ def fdPruneNonunique(colSetTuple, candidates):
             if candidate not in candidates:
                 continue
             if candidate in maxCounts:
-                if maxCounts[candidate] != 0:
-                    continue
-                else:
-                    print("The function dependency pruning is wrong! The non-unique",
-                          colSetTuple, "->", candidate)
-                    exit(1)
+                assert maxCounts[candidate] != 1, "the maximum count of a non-unique should not be 1"
+                continue
+
             if candidate in distinctCounts:
-                if distinctCounts[candidate] != -1:
-                    print("The function dependency pruning is wrong! The non-unique",
-                           colSetTuple, "->", candidate)
-                    exit(1)
+                assert distinctCounts[candidate] == 1, "the distinct count of a non-unique should be -1"
             else:
                 distinctCounts[candidate] = -1
 
@@ -244,7 +241,7 @@ def uniquenessCheck(colSetTuple):
 
     distinctCounts[colSetTuple] = linepair.count() # number of distinct values
     maxitem = linepair.max()
-    maxCounts[colSetTuple] = maxitem[1] # maximul value frequencies
+    maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
     
     return maxCounts[colSetTuple] == 1
 
