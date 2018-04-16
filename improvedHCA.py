@@ -1,19 +1,19 @@
 import csv
+import time
 from pyspark import SparkContext, SparkConf, StorageLevel
 from collections import defaultdict
 
 '''
 Spark task initialization.
 '''
-conf = SparkConf().setMaster("local").setAppName("K-candidate")
+conf = SparkConf().setAppName("K-candidate")
 sc = SparkContext(conf=conf)
 
 '''
 Data initialization.
 '''
-#lines = sc.textFile("open-violations.csv")
-lines = sc.textFile("file:///home/sc6439/project/ha.csv")
-#lines = sc.textFile("ha.csv")
+#lines = sc.textFile("file:///home/sc6439/project/ha.csv")
+lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -236,7 +236,6 @@ def uniquenessCheck(colSetTuple):
     :param colSetTuple: Tuple represents the column combination of a candidate
     :return: Boolean. True if input is an unique
     '''
-
     linepair = lines.map(lambda line: (tuple((line[i] for i in colSetTuple)), 1)) \
                     .reduceByKey(lambda x, y: x + y)
 
@@ -251,7 +250,7 @@ def uniquenessCheck(colSetTuple):
 
 
 if __name__ == '__main__':
-
+    start = time.time()
     linelist = lines.collect()
     totalRow = len(linelist)
     totalCol = len(linelist[0])
@@ -274,15 +273,25 @@ if __name__ == '__main__':
     for i in range(1, nonunique_1_size):
         generator = CandidateGenerator(layers[i-1])
         kcandidates = generator.create()
+        hcapruneCount=0
+        fdpruneCount=0
+        checkCount=0
         for candidate in kcandidates.keys():
             # Use the HCA to prune the candidate.
             # Add the non-unique item via fd prune
-            if hcaPrune(candidate) or (candidate in distinctCounts and distinctCounts[candidate] == -1):
+            if candidate in distinctCounts and distinctCounts[candidate] == -1:
                 layers[i].addNonunique(candidate)
+                fdpruneCount+=1
+                continue
+            
+            if hcaPrune(candidate):
+                layers[i].addNonunique(candidate)
+                hcapruneCount+=1
                 continue
 
             # Look up the table to check whether it is unique
             flag = uniquenessCheck(candidate)
+            checkCount+=1
 
             # After looking up the table, we get the statistic information,
             # so we can find function dependencies from those information
@@ -295,11 +304,9 @@ if __name__ == '__main__':
                 layers[i].addNonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
-
-    print(minimalUniques)
-
-    for i in range(0, nonunique_1_size):
-        print(layers[i].nonuniqueList)
-
-
-
+        print("{} layer: hca-{},fd-{},check-{}".format(i,hcapruneCount,fdpruneCount,checkCount))
+    end = time.time()
+    print("time elapsed: {}".format(end - start))
+#    print(minimalUniques)
+#    for i in range(0, nonunique_1_size):
+#        print(layers[i].nonuniqueList)
