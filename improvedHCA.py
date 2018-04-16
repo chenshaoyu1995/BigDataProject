@@ -12,6 +12,7 @@ sc = SparkContext(conf=conf)
 Data initialization.
 '''
 #lines = sc.textFile("open-violations.csv")
+#lines = sc.textFile("file:///home/sc6439/project/ha.csv")
 lines = sc.textFile("ha.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
@@ -177,17 +178,17 @@ def hcaPrune(candidate):
         leftSet = {column}
         rightSet = fullSet - leftSet
 
-        lefttuple = (column,)
-        righttuple = tuple(rightSet)
+        leftTuple = (column,)
+        rightTuple = tuple(rightSet)
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        rightDistinctCount = distinctCounts[lefttuple]
+        rightDistinctCount = distinctCounts[rightTuple]
         if rightDistinctCount == -1:
             continue
-        rightMaxCount = maxCounts[righttuple]
-        leftMaxCount = maxCounts[righttuple]
-        leftDistinctCount = distinctCounts[lefttuple]
+        rightMaxCount = maxCounts[rightTuple]
+        leftMaxCount = maxCounts[leftTuple]
+        leftDistinctCount = distinctCounts[leftTuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
 #        if leftdistcnt == -1:
