@@ -14,7 +14,7 @@ sc = SparkContext(conf=conf)
 '''
 Data initialization.
 '''
-#lines = sc.textFile("file:///home/sc6439/project/ha.csv")
+#lines = sc.textFile("file:///home/sc6439/project/ha.csv")lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
 lines = sc.textFile("./50.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
@@ -191,8 +191,9 @@ def getApproximateDistinct(colSetTuple):
 
     assert length != 1, "All the tuple with length 1 have distinct count"
 
+    fullcolUpper = totalRow
 
-    for k in range(1, min(length / 2 + 2, length)):
+    for k in range(1, min(int(length / 2.0) + 2, length)):
         subsetList = list(itertools.combinations(fulllist, k))
 
         for subset in subsetList:
@@ -207,7 +208,7 @@ def getApproximateDistinct(colSetTuple):
 
             fullcolUpper = min(fullcolUpper, leftUpper * rightUpper)
 
-    distinctCountsUpper[colSetTuple] = min(fullcolUpper, totalRow)
+    distinctCountsUpper[colSetTuple] = fullcolUpper
 
     return distinctCountsUpper[colSetTuple]
 
@@ -230,7 +231,7 @@ def getApproximateMaximum(colSetTuple):
 
     assert length != 1, "All the tuple with length 1 have maximum count"
 
-    for k in range(1, min(length / 2 + 2, length)):
+    for k in range(1, min(int(length / 2.0) + 2, length)):
         subsetList = list(itertools.combinations(fulllist, k))
 
         for subset in subsetList:

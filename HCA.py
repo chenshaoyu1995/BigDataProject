@@ -15,7 +15,7 @@ Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./50.csv")
+lines = sc.textFile("./ha.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -349,5 +349,5 @@ if __name__ == '__main__':
     end = time.time()
     print("time elapsed: {}".format(end - start))
     print(minimalUniques)
-    for i in range(0, nonunique_1_size):
-       print(layers[i].nonuniqueList)
+    # for i in range(0, nonunique_1_size):
+    #    print(layers[i].nonuniqueList)
