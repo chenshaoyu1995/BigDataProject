@@ -4,7 +4,7 @@ from math import ceil
 import itertools
 from pyspark import SparkContext, SparkConf, StorageLevel
 from collections import defaultdict
-
+import sys
 '''
 Spark task initialization.
 '''
@@ -16,7 +16,7 @@ Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./ha.csv")
+lines = sc.textFile("./50.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -26,12 +26,12 @@ minimalUniques = []
 
 # The collection of all functional dependencies X->Y
 # {(0,) : Set(2, 4)}
-# Dictionary: Tuple -> Set 
+# Dictionary: Tuple -> Set
 functionalDependencies = defaultdict(set)
 
 # The collection of all functional dependencies determinants Y where X->Y
 # {(2,) : Set(0), (4,) : Set(0)}
-# Dictionary: Tuple -> Set 
+# Dictionary: Tuple -> Set
 functionalDependencyDeterminants = defaultdict(set)
 
 # The dictionary of maximum counts
@@ -98,7 +98,7 @@ class CandidateGenerator:
     '''
     Generate the candidates that uniqueness checks are needed for one layer of Apriori
     '''
-    
+
     def __init__(self, preLayer):
         '''
         :param preLayer: ColLayer
@@ -126,7 +126,7 @@ class CandidateGenerator:
                         candidateList.append(key + (value[i],) + (value[j],))
                     else:
                         candidateList.append(key + (value[j],) + (value[i],))
-           
+
         result = {}
         for candidate in candidateList:
             if self.isValidUnique(candidate):
@@ -157,7 +157,7 @@ def getFunctionalDependencies(colSetTuple):
     '''
     fullDistinctCount = distinctCounts[colSetTuple]
     fullSet = set(colSetTuple)
-    
+
     for column in colSetTuple:
         leftSet = {column}
         rightSet = fullSet - leftSet
@@ -205,7 +205,7 @@ def getApproximateDistinct(colSetTuple):
             leftUpper = getApproximateDistinct(tuple(leftSet))
             rightUpper = getApproximateDistinct(tuple(rightSet))
 
-            fullcolUpper = (fullcolUpper, leftUpper * rightUpper)
+            fullcolUpper = min(fullcolUpper, leftUpper * rightUpper)
 
     distinctCountsUpper[colSetTuple] = min(fullcolUpper, totalRow)
 
@@ -280,7 +280,7 @@ def hcaPrune(candidate):
         leftDistinctCount = getApproximateDistinct(leftTuple)
 
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
-        
+
 #        if leftdistcnt == -1:
 #            continue
 
@@ -303,7 +303,7 @@ def fdPruneNonunique(colSetTuple, candidates):
     for column in colSetTuple:
         X = {column}
         A = list(fullSet - X)
-        
+
         # obtain the rightSet such that X->Y
         Ys = functionalDependencies[tuple(X)]
 
@@ -332,7 +332,7 @@ def fdPruneUnique(colSetTuple, candidates):
     for column in colSetTuple:
         Y = {column}
         A = list(fullSet - Y)
-        
+
         # obtain the determinnants of A
         Xs = functionalDependencyDeterminants[tuple(Y)]
 
@@ -398,7 +398,7 @@ if __name__ == '__main__':
                 layers[i].addNonunique(candidate)
                 fdpruneNonUniqueCount += 1
                 continue
-            
+
             if hcaPrune(candidate):
                 layers[i].addNonunique(candidate)
                 hcapruneCount+=1
@@ -428,6 +428,8 @@ if __name__ == '__main__':
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
         print("{} layer: hca-{},fdnon-{},fdmu-{},check-{}".format(i,hcapruneCount,fdpruneNonUniqueCount, fdpruneUniqueCount,checkCount))
+        sys.stdout.flush()
+
     end = time.time()
     print("time elapsed: {}".format(end - start))
     print(minimalUniques)
