@@ -1,22 +1,19 @@
 import csv
 import time
-from math import ceil
-import itertools
 from pyspark import SparkContext, SparkConf, StorageLevel
 from collections import defaultdict
 
 '''
 Spark task initialization.
 '''
-conf = SparkConf().setMaster("local").setAppName("K-candidate")
+conf = SparkConf().setAppName("K-candidate")
 sc = SparkContext(conf=conf)
 
 '''
 Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")
-#lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./ha.csv")
+lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -34,19 +31,19 @@ functionalDependencies = defaultdict(set)
 # Dictionary: Tuple -> Set 
 functionalDependencyDeterminants = defaultdict(set)
 
+# The number of total columns
+totalCol = -1
+
 # The dictionary of maximum counts
 # {Tuple(0, 1) : 1}
 # If Tuple is not in the maxCounts, the default value is -1
-maxCountsLower = defaultdict(lambda: -1)
-
+maxCounts = defaultdict(lambda: -1)
 
 # The dictionary of distinct counts
 # Also used to mark that Tuple is non-unique via fd pruning
 # {Tuple(0, 1) : 1000}
 # If Tuple is not in the distinctCounts, the default value is -1
-distinctCounts      = defaultdict(lambda: -1)
-distinctCountsUpper = defaultdict(lambda: -1)
-distinctCountsLower = defaultdict(lambda: -1)
+distinctCounts = defaultdict(lambda: -1)
 
 
 class ColLayer:
@@ -174,84 +171,6 @@ def getFunctionalDependencies(colSetTuple):
             functionalDependencies[tuple(leftSet)].update(rightSet)
             functionalDependencyDeterminants[tuple(rightSet)].update(leftSet)
 
-def getApproximateDistinct(colSetTuple):
-    '''
-    Find out the upper bound and lower bound of distinct count
-    of this column combination.
-    :param colSetTuple: Tuple represents a column combination
-    :return: tuple(upper bound, lower bound)
-    '''
-    fullcolUpper = distinctCountsUpper[colSetTuple]
-    fullcolLower = distinctCountsLower[colSetTuple]
-
-    if fullcolUpper != -1:
-        return (fullcolUpper, fullcolLower)
-
-    length = len(colSetTuple)
-    fullSet = set(colSetTuple)
-    fulllist = list(colSetTuple)
-
-
-
-    for k in range(1, length/2 + 2):
-        subsetList = list(itertools.combinations(fulllist, k))
-
-        for subset in subsetList:
-            leftSet = set(subset)
-            rightSet = fullSet - leftSet
-
-            leftUpper, leftLower = getApproximateDistinct(tuple(leftSet))
-            rightUpper, rightLower = getApproximateDistinct(tuple(rightSet))
-
-            fullcolUpper = min(fullcolUpper, leftUpper * rightUpper)
-            fullcolLower = max(fullcolLower, max(leftLower, rightLower))
-
-
-    distinctCountsLower[colSetTuple] = fullcolLower
-    distinctCountsUpper[colSetTuple] = min(fullcolUpper, totalRow)
-
-    return (distinctCountsUpper[colSetTuple], distinctCountsLower[colSetTuple])
-
-
-def getApproximateDistinct(colSetTuple):
-    '''
-    Find out the lower bound of maximum count of this column
-    combination.
-    :param colSetTuple: Tuple represents a column combination
-    :return: maximum count lower bound
-    '''
-    fullcolLower = maxCountsLower[colSetTuple]
-
-    if fullcolLower != -1:
-        return fullcolLower
-
-    length = len(colSetTuple)
-    fullSet = set(colSetTuple)
-    fulllist = list(colSetTuple)
-
-    for k in range(1, length / 2 + 2):
-        subsetList = list(itertools.combinations(fulllist, k))
-
-        for subset in subsetList:
-            leftSet = set(subset)
-            rightSet = fullSet - leftSet
-
-            leftUpper, leftLower = getApproximateDistinct(tuple(leftSet))
-            rightUpper, rightLower = getApproximateDistinct(tuple(rightSet))
-
-            leftMaxLower = getApproximateDistinct(tuple(leftSet))
-            rightMaxLower = getApproximateDistinct(tuple(rightSet))
-
-            fullcolUpper = max(fullcolUpper,
-                               int(max(ceil(leftMaxLower * 1.0 / rightUpper),
-                                       ceil(rightMaxLower * 1.0 / leftUpper)
-                                       ))
-                               )
-
-    maxCountsLower[colSetTuple] = min(fullcolLower, totalRow)
-
-    return maxCountsLower[colSetTuple]
-
 def hcaPrune(candidate):
     '''
     Use HCA to prune the candidate, if return True, the candidate is non-unique set.
@@ -272,8 +191,8 @@ def hcaPrune(candidate):
         rightDistinctCount = distinctCounts[rightTuple]
         if rightDistinctCount == -1:
             continue
-        rightMaxCount = maxCountsLower[rightTuple]
-        leftMaxCount = maxCountsLower[leftTuple]
+        rightMaxCount = maxCounts[rightTuple]
+        leftMaxCount = maxCounts[leftTuple]
         leftDistinctCount = distinctCounts[leftTuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
@@ -307,8 +226,8 @@ def fdPruneNonunique(colSetTuple, candidates):
             candidate = tuple(sorted(A + [Y])) #candidate is {A,Y}
             if candidate not in candidates:
                 continue
-            if candidate in maxCountsLower:
-                assert maxCountsLower[candidate] != 1, "the maximum count of a non-unique should not be 1"
+            if candidate in maxCounts:
+                assert maxCounts[candidate] != 1, "the maximum count of a non-unique should not be 1"
                 continue
             else:
                 if candidate in distinctCounts:
@@ -348,15 +267,14 @@ def uniquenessCheck(colSetTuple):
     linepair = lines.map(lambda line: (tuple((line[i] for i in colSetTuple)), 1)) \
                     .reduceByKey(lambda x, y: x + y)
 
-    distinctCounts[colSetTuple] = distinctCountsUpper[colSetTuple] = distinctCountsLower[colSetTuple] = linepair.count() # number of distinct values
+    distinctCounts[colSetTuple] = linepair.count() # number of distinct values
     maxitem = linepair.max(key=lambda x:x[1])
-    maxCountsLower[colSetTuple] = maxitem[1] # maximum value frequencies
+    maxCounts[colSetTuple] = maxitem[1] # maximum value frequencies
 
-    if maxCountsLower[colSetTuple] == 1:
+    if maxCounts[colSetTuple] == 1:
         assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
-        return True
-    else:
-        return False
+
+    return maxCounts[colSetTuple] == 1
 
 
 if __name__ == '__main__':
