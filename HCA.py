@@ -6,14 +6,15 @@ from collections import defaultdict
 '''
 Spark task initialization.
 '''
-conf = SparkConf().setAppName("K-candidate")
+conf = SparkConf().setMaster("local").setAppName("K-candidate")
 sc = SparkContext(conf=conf)
 
 '''
 Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")
-lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
+#lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
+lines = sc.textFile("./ha.csv")
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -344,6 +345,6 @@ if __name__ == '__main__':
         print("{} layer: hca-{},fdnon-{},fdmu-{},check-{}".format(i,hcapruneCount,fdpruneNonUniqueCount, fdpruneUniqueCount,checkCount))
     end = time.time()
     print("time elapsed: {}".format(end - start))
-#    print(minimalUniques)
-#    for i in range(0, nonunique_1_size):
-#        print(layers[i].nonuniqueList)
+    print(minimalUniques)
+    for i in range(0, nonunique_1_size):
+       print(layers[i].nonuniqueList)

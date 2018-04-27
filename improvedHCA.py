@@ -46,7 +46,6 @@ maxCountsLower = defaultdict(lambda: -1)
 # If Tuple is not in the distinctCounts, the default value is -1
 distinctCounts      = defaultdict(lambda: -1)
 distinctCountsUpper = defaultdict(lambda: -1)
-distinctCountsLower = defaultdict(lambda: -1)
 
 
 class ColLayer:
@@ -179,41 +178,41 @@ def getApproximateDistinct(colSetTuple):
     Find out the upper bound and lower bound of distinct count
     of this column combination.
     :param colSetTuple: Tuple represents a column combination
-    :return: tuple(upper bound, lower bound)
+    :return: upper bound
     '''
     fullcolUpper = distinctCountsUpper[colSetTuple]
-    fullcolLower = distinctCountsLower[colSetTuple]
 
     if fullcolUpper != -1:
-        return (fullcolUpper, fullcolLower)
+        return fullcolUpper
 
     length = len(colSetTuple)
     fullSet = set(colSetTuple)
     fulllist = list(colSetTuple)
 
+    assert length != 1, "All the tuple with length 1 have distinct count"
 
 
-    for k in range(1, length/2 + 2):
+    for k in range(1, min(length / 2 + 2, length)):
         subsetList = list(itertools.combinations(fulllist, k))
 
         for subset in subsetList:
+
+            assert k == len(subset), "It should be the same"
+
             leftSet = set(subset)
             rightSet = fullSet - leftSet
 
-            leftUpper, leftLower = getApproximateDistinct(tuple(leftSet))
-            rightUpper, rightLower = getApproximateDistinct(tuple(rightSet))
+            leftUpper = getApproximateDistinct(tuple(leftSet))
+            rightUpper = getApproximateDistinct(tuple(rightSet))
 
-            fullcolUpper = min(fullcolUpper, leftUpper * rightUpper)
-            fullcolLower = max(fullcolLower, max(leftLower, rightLower))
+            fullcolUpper = (fullcolUpper, leftUpper * rightUpper)
 
-
-    distinctCountsLower[colSetTuple] = fullcolLower
     distinctCountsUpper[colSetTuple] = min(fullcolUpper, totalRow)
 
-    return (distinctCountsUpper[colSetTuple], distinctCountsLower[colSetTuple])
+    return distinctCountsUpper[colSetTuple]
 
 
-def getApproximateDistinct(colSetTuple):
+def getApproximateMaximum(colSetTuple):
     '''
     Find out the lower bound of maximum count of this column
     combination.
@@ -229,20 +228,25 @@ def getApproximateDistinct(colSetTuple):
     fullSet = set(colSetTuple)
     fulllist = list(colSetTuple)
 
-    for k in range(1, length / 2 + 2):
+    assert length != 1, "All the tuple with length 1 have maximum count"
+
+    for k in range(1, min(length / 2 + 2, length)):
         subsetList = list(itertools.combinations(fulllist, k))
 
         for subset in subsetList:
+
+            assert k == len(subset), "It should be the same 1"
+
             leftSet = set(subset)
             rightSet = fullSet - leftSet
 
-            leftUpper, leftLower = getApproximateDistinct(tuple(leftSet))
-            rightUpper, rightLower = getApproximateDistinct(tuple(rightSet))
+            leftUpper = getApproximateDistinct(tuple(leftSet))
+            rightUpper = getApproximateDistinct(tuple(rightSet))
 
-            leftMaxLower = getApproximateDistinct(tuple(leftSet))
-            rightMaxLower = getApproximateDistinct(tuple(rightSet))
+            leftMaxLower = getApproximateMaximum(tuple(leftSet))
+            rightMaxLower = getApproximateMaximum(tuple(rightSet))
 
-            fullcolUpper = max(fullcolUpper,
+            fullcolLower = max(fullcolLower,
                                int(max(ceil(leftMaxLower * 1.0 / rightUpper),
                                        ceil(rightMaxLower * 1.0 / leftUpper)
                                        ))
@@ -269,12 +273,12 @@ def hcaPrune(candidate):
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-        rightDistinctCount = distinctCounts[rightTuple]
-        if rightDistinctCount == -1:
-            continue
-        rightMaxCount = maxCountsLower[rightTuple]
-        leftMaxCount = maxCountsLower[leftTuple]
-        leftDistinctCount = distinctCounts[leftTuple]
+
+        rightDistinctCount = getApproximateDistinct(rightTuple)
+        rightMaxCount = getApproximateMaximum(rightTuple)
+        leftMaxCount = getApproximateMaximum(leftTuple)
+        leftDistinctCount = getApproximateDistinct(leftTuple)
+
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
         
 #        if leftdistcnt == -1:
@@ -348,7 +352,7 @@ def uniquenessCheck(colSetTuple):
     linepair = lines.map(lambda line: (tuple((line[i] for i in colSetTuple)), 1)) \
                     .reduceByKey(lambda x, y: x + y)
 
-    distinctCounts[colSetTuple] = distinctCountsUpper[colSetTuple] = distinctCountsLower[colSetTuple] = linepair.count() # number of distinct values
+    distinctCounts[colSetTuple] = distinctCountsUpper[colSetTuple] = linepair.count() # number of distinct values
     maxitem = linepair.max(key=lambda x:x[1])
     maxCountsLower[colSetTuple] = maxitem[1] # maximum value frequencies
 
@@ -426,6 +430,6 @@ if __name__ == '__main__':
         print("{} layer: hca-{},fdnon-{},fdmu-{},check-{}".format(i,hcapruneCount,fdpruneNonUniqueCount, fdpruneUniqueCount,checkCount))
     end = time.time()
     print("time elapsed: {}".format(end - start))
-#    print(minimalUniques)
-#    for i in range(0, nonunique_1_size):
-#        print(layers[i].nonuniqueList)
+    print(minimalUniques)
+    for i in range(0, nonunique_1_size):
+       print(layers[i].nonuniqueList)
