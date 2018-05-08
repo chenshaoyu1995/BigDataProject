@@ -16,7 +16,7 @@ Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./50.csv")
+lines = sc.textFile(sys.argv[1])
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
