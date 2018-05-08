@@ -3,6 +3,7 @@ from pyspark import SparkContext, SparkConf, StorageLevel
 import itertools
 from collections import defaultdict
 import time
+import sys
 
 '''
 Spark task initialization.
