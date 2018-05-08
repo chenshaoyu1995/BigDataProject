@@ -1,2 +1,2 @@
 echo 'testing apriori'
-spark-submit ../BruteForce.py
+spark-submit /home/ec2-user/BigDataProject/BruteForce.py
