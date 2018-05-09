@@ -15,7 +15,7 @@ Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./ha.csv")
+lines = sc.textFile(sys.argv[1])
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -299,6 +299,12 @@ if __name__ == '__main__':
             layers[0].addNonunique(attriset)
 
     nonunique_1_size = len(layers[0].nonuniqueList)
+
+    hcapruneCountAll = 0
+    fdpruneNonUniqueCountAll=0
+    fdpruneUniqueCountAll = 0
+    checkCountAll=0
+
     # For the rest layers
     for i in range(1, nonunique_1_size):
         generator = CandidateGenerator(layers[i-1])
@@ -343,11 +349,19 @@ if __name__ == '__main__':
                 layers[i].addNonunique(candidate)
                 # Use function dependencies to prune the non-unique candidates
                 fdPruneNonunique(candidate, kcandidates)
-        print("{} layer: hca-{},fdnon-{},fdmu-{},check-{}".format(i,hcapruneCount,fdpruneNonUniqueCount, fdpruneUniqueCount,checkCount))
-        sys.stdout.flush()
+
+        hcapruneCountAll += hcapruneCount
+        fdpruneNonUniqueCountAll += fdpruneNonUniqueCount
+        fdpruneUniqueCountAll += fdpruneUniqueCount
+        checkCountAll += checkCount
+        # print("{} layer: hca-{},fdnon-{},fdmu-{},check-{}".format(i,hcapruneCount,fdpruneNonUniqueCount, fdpruneUniqueCount,checkCount))
+        # sys.stdout.flush()
 
     end = time.time()
+    print('resultStartLine')
     print("time elapsed: {}".format(end - start))
-    print(minimalUniques)
+    print("minimalUniques: {}".format(minimalUniques))
+    print("hca-{},fdnon-{},fdmu-{},check-{}".format(hcapruneCountAll,fdpruneNonUniqueCountAll, fdpruneUniqueCountAll,checkCountAll))
+    print('resultEndLine')
     # for i in range(0, nonunique_1_size):
     #    print(layers[i].nonuniqueList)

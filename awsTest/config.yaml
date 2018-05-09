@@ -1,0 +1,17 @@
+provider: ec2
+
+services:
+  spark:
+    version: 2.2.0
+
+launch:
+  num-slaves: 8
+
+providers:
+  ec2:
+    key-name: sparktest
+    identity-file: /Users/kaichen/.ssh/sparktest.pem
+    instance-type: m3.medium
+    region: us-east-1
+    ami: ami-97785bed
+    user: ec2-user
