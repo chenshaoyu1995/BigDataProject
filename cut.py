@@ -6,6 +6,7 @@ col = (int)(sys.argv[2])
 for line in sys.stdin:
     if row <= 0:
         break
+    row -= 1
     line = line.strip('\n')
     tmp = line.split(',')
 
