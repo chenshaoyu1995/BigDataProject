@@ -11,7 +11,7 @@ providers:
   ec2:
     key-name: sparktest
     identity-file: /Users/kaichen/.ssh/sparktest.pem
-    instance-type: m3.medium
+    instance-type: m4.xlarge
     region: us-east-1
     ami: ami-97785bed
     user: ec2-user
