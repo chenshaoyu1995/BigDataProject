@@ -172,9 +172,11 @@ if __name__ == '__main__':
                 layers[i].addNonunique(candidate)
 
     end = time.time()
+    print('resultStartLine')
     print("time elapsed: {}".format(end - start))
-    print(minimalUniques)
-    for i in range(0, nonunique_1_size):
-       print(layers[i].nonuniqueList)
+    print("minimalUniques: {}".format(minimalUniques))
+    print('resultEndLine')
+    # for i in range(0, nonunique_1_size):
+    #    print(layers[i].nonuniqueList)
 
 

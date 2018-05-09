@@ -1,7 +1,6 @@
 # IDEA
 .idea
 # Data
-*.csv
 
 # Windows image file caches
 Thumbs.db
