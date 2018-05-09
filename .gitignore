@@ -2,7 +2,9 @@
 .idea
 # Data
 
+data/
 /*.csv
+clean.py
 
 # Windows image file caches
 Thumbs.db
