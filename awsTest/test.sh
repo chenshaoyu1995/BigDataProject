@@ -6,7 +6,7 @@ testRoot="$root/awsTest/$file"
 inputFile="$testRoot/$file.csv"
 outputFile="$testRoot/$alg-$file-$slaves-slaves.out"
 algFile="$root/$alg.py"
-filterFile="$root/filter.py"
+filterFile="$root/awsTest/filter.py"
 echo "testing $alg on $file with $slaves slaves"
 
 echo $inputFile
