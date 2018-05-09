@@ -1,2 +1,3 @@
-time elapsed: 18.0006079674
-minimalUniques: [(0,), (7,), (1, 5), (2, 6), (1, 6), (2, 5)]
+time elapsed: 6.58290696144
+minimalUniques: [(0,), (5,), (1, 3), (1, 4), (1, 7), (1, 6)]
+check-39

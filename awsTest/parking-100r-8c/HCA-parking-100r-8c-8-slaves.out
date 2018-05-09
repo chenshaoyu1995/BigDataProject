@@ -1,3 +1,3 @@
-time elapsed: 27.3261191845
-minimalUniques: [(0,), (5, 7), (6, 7), (1, 3, 7), (1, 2, 7)]
-hca-33,fdnon-7,fdmu-0,check-30
+time elapsed: 13.0482470989
+minimalUniques: [(0,), (4, 5), (5, 7), (1, 5), (5, 6), (3, 5)]
+hca-0,fdnon-11,fdmu-0,check-52

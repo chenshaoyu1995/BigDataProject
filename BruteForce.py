@@ -147,12 +147,15 @@ if __name__ == '__main__':
 
     layers = []
 
+    checkCountAll = 0
+
     for i in range(totalCol):
         layers.append(ColLayer(i + 1))
 
     # For the first layer
     for i in range(0, totalCol):
         attriset = tuple([i])
+        checkCountAll+=1
         if uniquenessCheck(attriset):
             layers[0].addMinimalUnique(attriset)
         else:
@@ -166,6 +169,7 @@ if __name__ == '__main__':
         kcandidates = generator.create()
         for candidate in kcandidates.keys():
             # Look up the table to check whether it is unique
+            checkCountAll+=1
             if uniquenessCheck(candidate):
                 layers[i].addMinimalUnique(candidate)
             else:
@@ -175,6 +179,7 @@ if __name__ == '__main__':
     print('resultStartLine')
     print("time elapsed: {}".format(end - start))
     print("minimalUniques: {}".format(minimalUniques))
+    print("check-{}".format(checkCountAll))
     print('resultEndLine')
     # for i in range(0, nonunique_1_size):
     #    print(layers[i].nonuniqueList)
