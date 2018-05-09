@@ -5,7 +5,7 @@ services:
     version: 2.2.0
 
 launch:
-  num-slaves: 1
+  num-slaves: 8
 
 providers:
   ec2:
