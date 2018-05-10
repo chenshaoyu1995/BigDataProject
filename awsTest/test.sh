@@ -13,4 +13,4 @@ echo $inputFile
 echo $outputFile
 echo $algFile
 
-spark-submit $algFile $inputFile | python $filterFile > $outputFile
+spark-submit --deploy-mode cluster --master yarn --num-executors $slaves $algFile $inputFile | python $filterFile > $outputFile
