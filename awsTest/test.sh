@@ -16,7 +16,7 @@ echo $algFile
 spark-submit \
 --driver-memory 1G \
 --executor-cores 2 \
---executor-memory 6G \ 
+--executor-memory 6G \
 --num-executors $slaves \
 --conf spark.default.parallelism=1000 \
 --conf spark.storage.memoryFraction=0.5 \
