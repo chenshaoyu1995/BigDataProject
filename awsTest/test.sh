@@ -13,4 +13,14 @@ echo $inputFile
 echo $outputFile
 echo $algFile
 
-spark-submit --deploy-mode cluster --master yarn --num-executors $slaves $algFile $inputFile | python $filterFile > $outputFile
+spark-submit \
+--driver-memory 1G \
+--executor-cores 2 \
+--executor-memory 6G \ 
+--num-executors $slaves \
+--conf spark.default.parallelism=1000 \
+--conf spark.storage.memoryFraction=0.5 \
+--conf spark.shuffle.memoryFraction=0.3 \
+$algFile $inputFile | python $filterFile > $outputFile
+
+  
