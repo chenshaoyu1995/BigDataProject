@@ -13,4 +13,8 @@ echo $inputFile
 echo $outputFile
 echo $algFile
 
-spark-submit --deploy-mode cluster --master yarn --num-executors $slaves $algFile $inputFile | python $filterFile > $outputFile
+spark-submit \
+--master=spark://ec2-54-236-185-108.compute-1.amazonaws.com:7077 \
+$algFile $inputFile | python $filterFile > $outputFile
+
+  

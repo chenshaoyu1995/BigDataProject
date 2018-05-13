@@ -3,9 +3,11 @@ provider: ec2
 services:
   spark:
     version: 2.2.0
+  hdfs:
+    version: 2.7.2
 
 launch:
-  num-slaves: 8
+  num-slaves: 6
 
 providers:
   ec2:

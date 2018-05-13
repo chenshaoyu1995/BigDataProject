@@ -5,6 +5,8 @@
 data/
 /*.csv
 clean.py
+copy.sh
+preinstall.sh
 
 # Windows image file caches
 Thumbs.db

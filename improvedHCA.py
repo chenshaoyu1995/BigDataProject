@@ -8,7 +8,7 @@ import sys
 '''
 Spark task initialization.
 '''
-conf = SparkConf().setMaster("local").setAppName("K-candidate")
+conf = SparkConf().setAppName("K-candidate")
 sc = SparkContext(conf=conf)
 
 '''
