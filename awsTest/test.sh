@@ -14,7 +14,7 @@ echo $outputFile
 echo $algFile
 
 spark-submit \
---master=spark://ec2-204-236-192-147.compute-1.amazonaws.com:7077 \
+--master=spark://ec2-54-236-185-108.compute-1.amazonaws.com:7077 \
 $algFile $inputFile | python $filterFile > $outputFile
 
   
