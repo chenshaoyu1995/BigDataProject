@@ -37,18 +37,19 @@ functionalDependencies = defaultdict(set)
 # Dictionary: Tuple -> Set
 functionalDependencyDeterminants = defaultdict(set)
 
+# The number of total columns
+totalCol = -1
+
 # The dictionary of maximum counts
 # {Tuple(0, 1) : 1}
 # If Tuple is not in the maxCounts, the default value is -1
-maxCountsLower = defaultdict(lambda: -1)
-
+maxCounts = defaultdict(lambda: -1)
 
 # The dictionary of distinct counts
 # Also used to mark that Tuple is non-unique via fd pruning
 # {Tuple(0, 1) : 1000}
 # If Tuple is not in the distinctCounts, the default value is -1
-distinctCounts      = defaultdict(lambda: -1)
-distinctCountsUpper = defaultdict(lambda: -1)
+distinctCounts = defaultdict(lambda: -1)
 
 
 class ColLayer:
@@ -130,27 +131,26 @@ class CandidateGenerator:
                     else:
                         candidateList.append(key + (value[j],) + (value[i],))
 
-        candidateList = spark.sparkContext.parallelize(candidateList).filter(isValidUnique).collect()
         result = {}
         for candidate in candidateList:
-            # if self.isValidUnique(candidate):
-            #     continue
+            if self.isValidUnique(candidate):
+                continue
             result[candidate] = 1
 
         return result
 
-# Pruning function
-def isValidUnique(candidate):
-    '''
-    If the candidate is the superset of a minimum unique, return True
-    :param candidate: Tuple
-    :return: Boolean
-    '''
-    fullset = set(candidate)
-    for minUnique in minimalUniques:
-        if fullset.issuperset(set(minUnique)):
-            return False
-    return True
+    # Pruning function
+    def isValidUnique(self, candidate):
+        '''
+        If the candidate is the superset of a minimum unique, return True
+        :param candidate: Tuple
+        :return: Boolean
+        '''
+        fullset = set(candidate)
+        for minUnique in minimalUniques:
+            if fullset.issuperset(set(minUnique)):
+                return True
+        return False
 
 
 def getFunctionalDependencies(colSetTuple):
@@ -177,99 +177,15 @@ def getFunctionalDependencies(colSetTuple):
             functionalDependencies[tuple(leftSet)].update(rightSet)
             functionalDependencyDeterminants[tuple(rightSet)].update(leftSet)
 
-def getApproximateDistinct(colSetTuple):
-    '''
-    Find out the upper bound and lower bound of distinct count
-    of this column combination.
-    :param colSetTuple: Tuple represents a column combination
-    :return: upper bound
-    '''
-    fullcolUpper = distinctCountsUpper[colSetTuple]
-
-    if fullcolUpper != -1:
-        return fullcolUpper
-
-    length = len(colSetTuple)
-    fullSet = set(colSetTuple)
-    fulllist = list(colSetTuple)
-
-    assert length != 1, "All the tuple with length 1 have distinct count"
-
-    fullcolUpper = totalRow
-
-    for k in range(1, min(int(length / 2.0) + 2, length)):
-        subsetList = list(itertools.combinations(fulllist, k))
-
-        for subset in subsetList:
-
-            assert k == len(subset), "It should be the same"
-
-            leftSet = set(subset)
-            rightSet = fullSet - leftSet
-
-            leftUpper = getApproximateDistinct(tuple(leftSet))
-            rightUpper = getApproximateDistinct(tuple(rightSet))
-
-            fullcolUpper = min(fullcolUpper, leftUpper * rightUpper)
-
-    distinctCountsUpper[colSetTuple] = fullcolUpper
-
-    return distinctCountsUpper[colSetTuple]
-
-
-def getApproximateMaximum(colSetTuple):
-    '''
-    Find out the lower bound of maximum count of this column
-    combination.
-    :param colSetTuple: Tuple represents a column combination
-    :return: maximum count lower bound
-    '''
-    fullcolLower = maxCountsLower[colSetTuple]
-
-    if fullcolLower != -1:
-        return fullcolLower
-
-    length = len(colSetTuple)
-    fullSet = set(colSetTuple)
-    fulllist = list(colSetTuple)
-
-    assert length != 1, "All the tuple with length 1 have maximum count"
-
-    for k in range(1, min(int(length / 2.0) + 2, length)):
-        subsetList = list(itertools.combinations(fulllist, k))
-
-        for subset in subsetList:
-
-            assert k == len(subset), "It should be the same 1"
-
-            leftSet = set(subset)
-            rightSet = fullSet - leftSet
-
-            leftUpper = getApproximateDistinct(tuple(leftSet))
-            rightUpper = getApproximateDistinct(tuple(rightSet))
-
-            leftMaxLower = getApproximateMaximum(tuple(leftSet))
-            rightMaxLower = getApproximateMaximum(tuple(rightSet))
-
-            fullcolLower = max(fullcolLower,
-                               int(max(ceil(leftMaxLower * 1.0 / rightUpper),
-                                       ceil(rightMaxLower * 1.0 / leftUpper)
-                                       ))
-                               )
-
-    maxCountsLower[colSetTuple] = min(fullcolLower, totalRow)
-
-    return maxCountsLower[colSetTuple]
-
-def hcaPrune(colSetTuple):
+def hcaPrune(candidate):
     '''
     Use HCA to prune the candidate, if return True, the candidate is non-unique set.
     :param candidate: Tuple represents the column combination of a candidate
     :return: Boolean
     '''
 
-    fullSet = set(colSetTuple)
-    for column in colSetTuple:
+    fullSet = set(candidate)
+    for column in candidate:
         leftSet = {column}
         rightSet = fullSet - leftSet
 
@@ -278,12 +194,12 @@ def hcaPrune(colSetTuple):
 
         # If the colitem is a single column,
         # the maximum count and distinct count will never be -1
-
-        rightDistinctCount = getApproximateDistinct(rightTuple)
-        rightMaxCount = getApproximateMaximum(rightTuple)
-        leftMaxCount = getApproximateMaximum(leftTuple)
-        leftDistinctCount = getApproximateDistinct(leftTuple)
-
+        rightDistinctCount = distinctCounts[rightTuple]
+        if rightDistinctCount == -1:
+            continue
+        rightMaxCount = maxCounts[rightTuple]
+        leftMaxCount = maxCounts[leftTuple]
+        leftDistinctCount = distinctCounts[leftTuple]
         assert leftDistinctCount != -1, "the distinct count of a single column should not be -1"
 
 #        if leftdistcnt == -1:
@@ -316,8 +232,8 @@ def fdPruneNonunique(colSetTuple, candidates):
             candidate = tuple(sorted(A + [Y])) #candidate is {A,Y}
             if candidate not in candidates:
                 continue
-            if candidate in maxCountsLower:
-                assert maxCountsLower[candidate] != 1, "the maximum count of a non-unique should not be 1"
+            if candidate in maxCounts:
+                assert maxCounts[candidate] != 1, "the maximum count of a non-unique should not be 1"
                 continue
             else:
                 if candidate in distinctCounts:
@@ -363,11 +279,11 @@ def uniquenessCheck(colSetTuple):
 
     cdata = spark.sql(strsql).collect()
 
-    maxCountsLower[colSetTuple] = cdata[0].maxn
-    distinctCounts[colSetTuple] = distinctCountsUpper[colSetTuple] = cdata[0].cnt
+    maxCounts[colSetTuple] = cdata[0].maxn
+    distinctCounts[colSetTuple] = cdata[0].cnt
 
 
-    if maxCountsLower[colSetTuple] == 1:
+    if maxCounts[colSetTuple] == 1:
         assert distinctCounts[colSetTuple]==totalRow, "When maximum count == 1, number of distinct values should be number of rows"
         return True
     else:
@@ -376,8 +292,10 @@ def uniquenessCheck(colSetTuple):
 
 if __name__ == '__main__':
     start = time.time()
+    linelist = lines.collect()
     totalRow = int(sys.argv[1])
     totalCol = int(sys.argv[2])
+
 
     layers = []
 
@@ -443,5 +361,5 @@ if __name__ == '__main__':
     end = time.time()
     print("time elapsed: {}".format(end - start))
     print(minimalUniques)
-    for i in range(0, nonunique_1_size):
-       print(layers[i].nonuniqueList)
+    # for i in range(0, nonunique_1_size):
+    #    print(layers[i].nonuniqueList)

@@ -16,7 +16,7 @@ Data initialization.
 '''
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./50.csv")
+lines = sc.textFile("./ha.csv", 8)
 lines = lines.mapPartitions(lambda line: csv.reader(line))
 lines.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -370,6 +370,10 @@ if __name__ == '__main__':
     totalRow = len(linelist)
     totalCol = len(linelist[0])
 
+    print(sc.defaultParallelism)
+'''
+
+
     layers = []
 
     for i in range(totalCol):
@@ -436,3 +440,4 @@ if __name__ == '__main__':
     print(minimalUniques)
     for i in range(0, nonunique_1_size):
        print(layers[i].nonuniqueList)
+'''

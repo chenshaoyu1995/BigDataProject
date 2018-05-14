@@ -1,25 +1,27 @@
 import csv
-from pyspark import SparkContext, SparkConf, StorageLevel
-import itertools
-from collections import defaultdict
 import time
+from math import ceil
+import itertools
+from pyspark.sql import SparkSession
+from collections import defaultdict
+import sys
 
 '''
 Spark task initialization.
 '''
-
-conf = SparkConf().setMaster("local").setAppName("K-candidate")
-sc = SparkContext(conf=conf)
+spark = SparkSession \
+    .builder \
+    .appName("K-candidate-SQL") \
+    .config("spark.some.config.option", "some-value") \
+    .getOrCreate()
 
 '''
 Data initialization.
 '''
-# lines = sc.textFile("/user/hw1651/1w.csv")
-#lines = sc.textFile("file:///home/sc6439/project/ha.csv")
-#lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./50.csv")
-lines = lines.mapPartitions(lambda line: csv.reader(line))
-lines.persist(StorageLevel.MEMORY_AND_DISK)
+#lines = spark.read.csv("file:///home/sc6439/project/ha.csv", header=False)
+lines = spark.read.csv(sys.argv[3], header=False)
+lines.cache()
+lines.createOrReplaceTempView("datatable")
 
 # The collection of all the minimalUniques
 # List of tuple, each tuple is the columns of a min-unique
@@ -126,23 +128,29 @@ def uniquenessCheck(colSetTuple):
     :param colSetTuple: Tuple represents the column combination of a candidate
     :return: Boolean. True if input is an unique
     '''
+    strsql = "SELECT MAX(*) AS maxn, COUNT(*) AS cnt FROM (SELECT COUNT(*) FROM datatable GROUP BY "
 
-    linepair = lines.map(lambda line: (tuple((line[i] for i in colSetTuple)), 1)) \
-        .reduceByKey(lambda x, y: x + y)
+    for i in colSetTuple:
+        strsql += "_c{},".format(i)
 
-    maxitem = linepair.max(lambda x: x[1])
-    maxCounts[colSetTuple] = maxitem[1]  # maximum value frequencies
+    strsql = strsql[0:-1] + ")"
 
-    return maxCounts[colSetTuple] == 1
+    cdata = spark.sql(strsql).collect()
+
+    maxCounts[colSetTuple] = cdata[0].maxn
+
+    if maxCounts[colSetTuple] == 1:
+        return True
+    else:
+        return False
 
 
 if __name__ == '__main__':
 
     start = time.time()
 
-    linelist = lines.collect()
-
-    totalCol = len(linelist[0])
+    totalRow = int(sys.argv[1])
+    totalCol = int(sys.argv[2])
 
     layers = []
 
