@@ -17,9 +17,9 @@ Data initialization.
 # lines = sc.textFile("/user/hw1651/1w.csv")
 #lines = sc.textFile("file:///home/sc6439/project/ha.csv")
 #lines = sc.textFile("/user/ecc290/HW1data/open-violations.csv")
-lines = sc.textFile("./50.csv")
+lines = sc.textFile("./ha.csv", sc.defaultParallelism)
 lines = lines.mapPartitions(lambda line: csv.reader(line))
-lines.persist(StorageLevel.MEMORY_AND_DISK)
+lines.cache()
 
 # The collection of all the minimalUniques
 # List of tuple, each tuple is the columns of a min-unique
